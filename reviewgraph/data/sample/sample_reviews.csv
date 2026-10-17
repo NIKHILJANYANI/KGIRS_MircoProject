@@ -1,0 +1,101 @@
+review_id,reviewer_id,product_id,review_text,rating,timestamp,label,is_synthetic
+SYNTH_R001,REV001,P001,"I purchased this product about two weeks ago and I am genuinely impressed with the build quality. The materials feel solid and premium, and it looks even better in person than in the photos. Assembly was straightforward and took about twenty minutes. Would definitely recommend to anyone looking for good value.",4,2023-03-15,0,True
+SYNTH_R002,REV002,P001,"Decent product overall. The shipping took a bit longer than expected but the packaging was secure and nothing was damaged. Works as advertised. I have been using it daily for three weeks without any issues. The color is slightly darker than shown online but that is a minor complaint.",4,2023-04-02,0,True
+SYNTH_R003,REV003,P002,"Really happy with this purchase. The quality exceeded my expectations for the price point. I compared it with similar products from other brands and this one wins on build quality and features. Customer service responded quickly when I had a question about setup.",5,2023-04-18,0,True
+SYNTH_R004,REV004,P002,"Not the best I have owned but it does the job. For the price range it is a reasonable option. I have had it for two months now and it still works fine. The instructions could be clearer but once you figure it out there are no issues.",3,2023-05-01,0,True
+SYNTH_R005,REV005,P003,"Great value for money. Bought this as a gift for my sister and she loves it. The packaging was neat and professional which made it feel like a premium product. Would buy again without hesitation.",5,2023-05-20,0,True
+SYNTH_R006,REV006,P003,"Works as described. Nothing particularly impressive but solid and reliable. I use it every day and have had no complaints. The finish could be slightly better but at this price I cannot fault it.",3,2023-06-08,0,True
+SYNTH_R007,REV007,P004,"I was skeptical based on the price but this product has been a pleasant surprise. Very sturdy and well-made. Fits perfectly in the space I had planned for it. Highly recommend for anyone on a budget who still wants quality.",5,2023-06-25,0,True
+SYNTH_R008,REV008,P004,"Bought this after reading mixed reviews and I can say mine has been entirely positive. No issues after three months of regular use. The design is practical and modern. Would buy from this seller again.",4,2023-07-10,0,True
+SYNTH_R009,REV009,P005,"Good product. I compared it with two other options before deciding on this one and I made the right choice. Easy to use, well-designed, and the instructions were clear. Delivery was fast and the item came well protected.",4,2023-07-28,0,True
+SYNTH_R010,REV010,P005,"Absolutely love this product. It has made a real difference in my daily routine. The quality is noticeably better than cheaper alternatives I tried before. Worth every penny. I have recommended it to three friends already.",5,2023-08-14,0,True
+SYNTH_R011,REV011,P001,"Solid purchase. Does exactly what I needed it to do. The size is perfect for my use case and the build is sturdy enough that I am confident it will last a long time. Packaging was a bit excessive but the product itself is great.",4,2023-08-30,0,True
+SYNTH_R012,REV012,P002,"A bit pricier than I wanted to spend but the quality justifies the cost. I have owned cheaper versions of this type of product before and the difference is immediately noticeable. Will be purchasing another one for my office.",4,2023-09-12,0,True
+SYNTH_R013,REV013,P003,"My second purchase from this brand and just as good as the first. Consistent quality and reliable performance. The customer service team was helpful when I reached out with a question. Will continue to buy from them.",5,2023-09-28,0,True
+SYNTH_R014,REV014,P004,"Good product for everyday use. Does not have all the bells and whistles of premium versions but for basic needs it works perfectly. Arrived on time and exactly as described. No complaints.",3,2023-10-15,0,True
+SYNTH_R015,REV015,P005,"Exactly what I was looking for. I read many reviews before buying and the positive ones are accurate. High quality materials, easy to use, and looks great. Very satisfied with this purchase.",5,2023-10-30,0,True
+SYNTH_R016,REV016,P001,"Reasonable product. I have had it for about six weeks and it performs well. A few minor design quirks but nothing that affects functionality. For the price it is a fair deal.",3,2023-11-18,0,True
+SYNTH_R017,REV017,P002,"Really pleased with this. The design is clean and modern which fits my home decor well. Performance is consistent and reliable. Setup was simple. Arrived two days earlier than expected.",4,2023-12-05,0,True
+SYNTH_R018,REV018,P003,"Good value. Does what it says on the tin. I have been using it for a month without any issues. The material feels durable and the finish is clean. Would recommend to friends and family.",4,2023-12-22,0,True
+SYNTH_R019,REV019,P004,"Very happy with this product. It has a solid feel to it and the performance matches the description. Bought it as a replacement for an older model and this one is noticeably better in several ways.",5,2024-01-08,0,True
+SYNTH_R020,REV020,P005,"Does the job well. Not flashy but practical and reliable. I bought it for a specific purpose and it fulfills that purpose without any issues. Would consider buying again when I need a replacement.",3,2024-01-25,0,True
+SYNTH_R021,REV021,P001,"Okay product but nothing special. Delivered as described. Works fine for casual use. Would not buy again but not disappointed either.",3,2024-02-10,0,True
+SYNTH_R022,REV022,P002,"Pretty good! Works well, looks nice. Happy with the purchase overall. Would recommend to anyone looking for something reliable at a reasonable price.",4,2024-02-27,0,True
+SYNTH_R023,REV023,P003,"Arrived on time and in perfect condition. Exactly as described. Quality is consistent with the price point. No issues to report after three weeks of use.",4,2024-03-15,0,True
+SYNTH_R024,REV024,P004,"Good quality for the price. I use it every day and it holds up well. Would be five stars if not for the slightly complicated setup process.",4,2024-03-30,0,True
+SYNTH_R025,REV025,P005,"Happy with this purchase. Does what it needs to do and looks decent. Packaging was secure. Would recommend if you need something reliable without spending a fortune.",4,2024-04-16,0,True
+SYNTH_R026,REV001,P002,"Works fine. Bought it last month and no problems so far. Good build quality and straightforward to use.",4,2024-04-30,0,True
+SYNTH_R027,REV002,P003,"Exactly as expected. Quality product and reliable performance. Would buy from this seller again.",4,2024-05-15,0,True
+SYNTH_R028,REV003,P004,"Pleased with this. Does the job nicely and arrived quickly. No complaints.",4,2024-05-28,0,True
+SYNTH_R029,REV004,P005,"Good product. Sturdy and well-designed. Performs consistently. Recommended.",4,2024-06-10,0,True
+SYNTH_R030,REV005,P001,"Nice product. Good quality for the price. Easy to use. Would recommend.",4,2024-06-25,0,True
+SYNTH_R031,REV006,P002,"Works as described. Good value. Delivery was fast. Happy with this.",4,2024-07-08,0,True
+SYNTH_R032,REV007,P003,"Solid product. Does what it says. Good quality and reasonable price.",4,2024-07-22,0,True
+SYNTH_R033,REV008,P004,"Very good. Works well. I am satisfied with this purchase.",4,2024-08-05,0,True
+SYNTH_R034,REV009,P005,"Good buy. Works as expected. Arrived promptly and well packaged.",4,2024-08-18,0,True
+SYNTH_R035,REV010,P001,"Decent quality. Nothing to complain about. Works as advertised. Recommended.",4,2024-09-01,0,True
+SYNTH_R036,REV011,P002,"Good product for daily use. Reliable and well-made.",4,2024-09-15,0,True
+SYNTH_R037,REV012,P003,"Happy with this purchase. Quality matches the price. Would buy again.",4,2024-09-28,0,True
+SYNTH_R038,REV013,P004,"Works well. Good quality. Fast delivery. Would recommend.",4,2024-10-12,0,True
+SYNTH_R039,REV014,P005,"Satisfied with this product. Does what I needed it to do. Good value.",4,2024-10-28,0,True
+SYNTH_R040,REV015,P001,"Very happy. Great product. Works perfectly. Definitely recommend.",4,2024-11-10,0,True
+SYNTH_R041,REV016,P002,"Good quality. Works as advertised. Reasonable price.",3,2024-11-22,0,True
+SYNTH_R042,REV017,P003,"Useful product. Does the job well. Would consider buying again.",4,2024-12-05,0,True
+SYNTH_R043,REV018,P004,"Solid. Reliable. Good value for money. Recommended.",4,2024-12-18,0,True
+SYNTH_R044,REV019,P005,"Quality product. Happy with this purchase. Fast shipping.",4,2023-02-14,0,True
+SYNTH_R045,REV020,P001,"Nice quality for the price. Looks good and works well. Satisfied.",4,2023-02-28,0,True
+SYNTH_R046,REV021,P002,"Great for the price. Exactly what I needed. No issues at all.",4,2023-03-12,0,True
+SYNTH_R047,REV022,P003,"Very pleased. Quality is better than expected. Would buy again.",5,2023-03-27,0,True
+SYNTH_R048,REV023,P004,"Good product. Works consistently. Would recommend.",4,2023-04-10,0,True
+SYNTH_R049,REV024,P005,"Happy with the quality. Well packaged. Fast delivery. Good buy.",4,2023-04-24,0,True
+SYNTH_R050,REV025,P001,"Solid product. Good quality materials. Would recommend to anyone.",4,2023-05-08,0,True
+SYNTH_R051,REV001,P003,"Works as expected. Reasonable quality. Good value.",3,2023-05-22,0,True
+SYNTH_R052,REV002,P004,"Good buy overall. Does the job. Fast delivery.",4,2023-06-05,0,True
+SYNTH_R053,REV003,P005,"Nice product. Looks and works well. Satisfied.",4,2023-06-19,0,True
+SYNTH_R054,REV004,P001,"Does what it says. Good value. Would buy again.",4,2023-07-03,0,True
+SYNTH_R055,REV005,P002,"Quality matches the description. Happy with this.",4,2023-07-17,0,True
+SYNTH_R056,REV006,P003,"Good product. Works well. Would recommend.",4,2023-07-31,0,True
+SYNTH_R057,REV007,P004,"Satisfied with this purchase. Works as advertised.",4,2023-08-14,0,True
+SYNTH_R058,REV008,P005,"Very good quality. Fast shipping. Happy with this buy.",4,2023-08-28,0,True
+SYNTH_R059,REV009,P001,"Good value. Reliable product. Would recommend.",4,2023-09-11,0,True
+SYNTH_R060,REV010,P002,"Exactly as described. Works well. Satisfied.",4,2023-09-25,0,True
+SYNTH_R061,REV011,P003,"Happy with this product. Good quality and price.",4,2023-10-09,0,True
+SYNTH_R062,REV012,P004,"Works perfectly for my needs. Good buy.",4,2023-10-23,0,True
+SYNTH_R063,REV013,P005,"Solid quality. Would recommend to anyone.",4,2023-11-06,0,True
+SYNTH_R064,REV014,P001,"Good product. Fast delivery. Happy with this.",4,2023-11-20,0,True
+SYNTH_R065,REV015,P002,"Quality as expected. Good value. Would buy again.",4,2023-12-04,0,True
+SYNTH_R066,REV016,P003,"Reliable and well-made. Happy with purchase.",4,2023-12-18,0,True
+SYNTH_R067,REV017,P004,"Does the job. Good quality for the price.",3,2024-01-01,0,True
+SYNTH_R068,REV018,P005,"Works well and arrived quickly. Satisfied.",4,2024-01-15,0,True
+SYNTH_R069,REV019,P001,"Good buy. Quality product. Would recommend.",4,2024-01-29,0,True
+SYNTH_R070,REV020,P002,"Pleased with this. Does what I needed.",4,2024-02-12,0,True
+SYNTH_R071,REV026,P001,"BEST PRODUCT EVER!!! Five stars!!! Buy this NOW!!! You will absolutely love it!!! Amazing quality!!!",5,2024-03-01,1,True
+SYNTH_R072,REV026,P002,"Best product ever! Amazing quality! Buy this now! You will not regret it! Five stars! Highly recommend!",5,2024-03-01,1,True
+SYNTH_R073,REV026,P003,"BEST PRODUCT EVER!!! Five stars!!! Buy this NOW!!! Amazing quality!!! Highly recommend!!!",5,2024-03-02,1,True
+SYNTH_R074,REV027,P001,"Absolutely terrible quality! Broke after one day! Worst purchase of my life! Total scam! Avoid at all costs!",1,2024-03-03,1,True
+SYNTH_R075,REV027,P004,"Do NOT buy this! Complete scam! Broke immediately! Worst product ever made! Total waste of money! Avoid!",1,2024-03-03,1,True
+SYNTH_R076,REV028,P002,"Five stars. Best product. Buy this. Amazing. Love it. Recommend everyone.",5,2024-03-05,1,True
+SYNTH_R077,REV028,P003,"Five stars! Best product! Buy this! Amazing quality! Love it! Highly recommend to everyone!",5,2024-03-05,1,True
+SYNTH_R078,REV028,P005,"Five stars. Best product. Buy this now. Amazing quality. Love it. Recommend.",5,2024-03-06,1,True
+SYNTH_R079,REV029,P001,"WORST PRODUCT EVER! Do not buy! Broke immediately! Scam! Total waste! Avoid this seller! Never again!",1,2024-03-07,1,True
+SYNTH_R080,REV029,P002,"Do NOT buy! Scam product! Broke first day! Terrible quality! Worst ever! Avoid completely! Never again!",1,2024-03-07,1,True
+SYNTH_R081,REV030,P003,"Amazing product! Best I have ever used! Buy immediately! Five stars! Incredible quality! Highly recommend!",5,2024-03-09,1,True
+SYNTH_R082,REV030,P004,"Amazing product! Best ever used! Buy immediately! Five stars! Incredible quality! Highly recommend!",5,2024-03-09,1,True
+SYNTH_R083,REV030,P005,"Amazing product! Best ever! Buy immediately! Five stars! Incredible quality! Highly recommend everyone!",5,2024-03-10,1,True
+SYNTH_R084,REV026,P004,"Best product ever! Five stars! Buy now! You will love it! Amazing quality! Highly recommend!",5,2024-03-11,1,True
+SYNTH_R085,REV027,P005,"Terrible! Scam! Broke immediately! Worst product! Total waste of money! Do not buy! Avoid!",1,2024-03-11,1,True
+SYNTH_R086,REV028,P001,"Best purchase ever! Amazing quality! Five stars! Buy this now! Highly recommend to everyone! Love it!",5,2024-03-12,1,True
+SYNTH_R087,REV029,P003,"Worst product! Scam! Do not buy! Broke instantly! Terrible quality! Waste of money! Never buying again!",1,2024-03-12,1,True
+SYNTH_R088,REV030,P001,"Best product ever made! Five stars! Amazing quality! Buy now! Highly recommend! You will not regret it!",5,2024-03-13,1,True
+SYNTH_R089,REV026,P005,"BEST PRODUCT EVER MADE!!! Five stars!!! Buy immediately!!! Amazing quality!!! Highly recommend!!!",5,2024-03-14,1,True
+SYNTH_R090,REV027,P002,"Do not purchase this! Absolute scam! Broke after hours! Terrible quality! Worst purchase ever! Avoid!",1,2024-03-14,1,True
+SYNTH_R091,REV021,P001,"Good product. Does what it says. No complaints.",4,2024-02-26,0,True
+SYNTH_R092,REV022,P002,"Satisfied with the quality. Good value for money.",4,2024-03-15,0,True
+SYNTH_R093,REV023,P003,"Works well. Happy with this purchase. Would recommend.",4,2024-04-01,0,True
+SYNTH_R094,REV024,P004,"Solid product. Good build quality. Would buy again.",4,2024-04-15,0,True
+SYNTH_R095,REV025,P005,"Good quality and reasonable price. Satisfied.",4,2024-04-28,0,True
+SYNTH_R096,REV001,P004,"Does the job. Good value. Happy with this.",4,2024-05-12,0,True
+SYNTH_R097,REV002,P005,"Nice product. Works well. Fast delivery.",4,2024-05-26,0,True
+SYNTH_R098,REV003,P001,"Solid quality. Good buy. Would recommend.",4,2024-06-09,0,True
+SYNTH_R099,REV004,P002,"Happy with purchase. Works as described.",4,2024-06-22,0,True
+SYNTH_R100,REV005,P003,"Good quality product. Satisfied with this buy.",4,2024-07-05,0,True

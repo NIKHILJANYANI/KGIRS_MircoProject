@@ -1,0 +1,36 @@
+{
+  "classification_metrics": {
+    "status": "not_run",
+    "message": "Run scripts/train_model.py first to generate classification metrics."
+  },
+  "retrieval_metrics": {
+    "status": "skipped",
+    "message": "No benchmark queries could be built (dataset not found)."
+  },
+  "explanation_metrics": {
+    "status": "skipped",
+    "message": "No product IDs available for explainability testing."
+  },
+  "latency_metrics": {
+    "health": {
+      "avg_ms": 123.76834000024246,
+      "min_ms": 70.48170000052778,
+      "max_ms": 334.2715999970096,
+      "p95_ms": 281.8462999974144
+    },
+    "stats": {
+      "avg_ms": 86.82535999978427,
+      "min_ms": 71.50899999396643,
+      "max_ms": 138.3720000012545,
+      "p95_ms": 126.5819400010514
+    },
+    "products_list": {
+      "avg_ms": 141.70193999889307,
+      "min_ms": 139.25279999966733,
+      "max_ms": 143.59870000043884,
+      "p95_ms": 143.49662000022363
+    }
+  },
+  "generated_at": "2026-10-17T19:57:05.318712Z",
+  "benchmark_note": "Retrieval benchmark uses a silver-standard query set. Relevant items are reviews containing the query term \u2014 not manually verified. Do not treat these metrics as ground-truth IR performance."
+}

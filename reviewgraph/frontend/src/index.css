@@ -1,0 +1,84 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom base styles */
+@layer base {
+  body {
+    @apply bg-gray-950 text-gray-100 font-sans antialiased;
+  }
+  h1 { @apply text-3xl font-bold; }
+  h2 { @apply text-2xl font-semibold; }
+  h3 { @apply text-xl font-semibold; }
+}
+
+/* Custom component classes */
+@layer components {
+  .card {
+    @apply bg-gray-900 border border-gray-800 rounded-xl p-6;
+  }
+  .card-header {
+    @apply text-lg font-semibold text-gray-100 mb-4;
+  }
+  .badge-suspicious {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-900 text-red-300 border border-red-800;
+  }
+  .badge-genuine {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-900 text-green-300 border border-green-800;
+  }
+  .badge-unknown {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-800 text-gray-400 border border-gray-700;
+  }
+  .btn-primary {
+    @apply bg-indigo-600 hover:bg-indigo-500 text-white font-medium px-4 py-2 rounded-lg transition-colors;
+  }
+  .btn-secondary {
+    @apply bg-gray-800 hover:bg-gray-700 text-gray-200 font-medium px-4 py-2 rounded-lg border border-gray-700 transition-colors;
+  }
+  .input-field {
+    @apply bg-gray-800 border border-gray-700 text-gray-100 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-gray-500;
+  }
+  .stat-card {
+    @apply bg-gray-900 border border-gray-800 rounded-xl p-5 flex flex-col gap-2;
+  }
+  .stat-value {
+    @apply text-3xl font-bold text-indigo-400;
+  }
+  .stat-label {
+    @apply text-sm text-gray-400;
+  }
+}
+
+/* Graph visualization overrides */
+.cy-container {
+  width: 100%;
+  height: 100%;
+  min-height: 500px;
+  background: #0f172a;
+  border-radius: 0.75rem;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #1f2937; }
+::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #6b7280; }
+
+/* Suspiciousness score ring */
+.score-ring {
+  background: conic-gradient(
+    var(--score-color) calc(var(--score-pct) * 1%),
+    #374151 0
+  );
+}
+
+/* Evidence path styling */
+.evidence-path {
+  @apply flex items-center gap-2 text-sm text-gray-300 flex-wrap;
+}
+.evidence-path-node {
+  @apply bg-gray-800 border border-gray-700 rounded-md px-2 py-1 font-mono text-xs;
+}
+.evidence-path-arrow {
+  @apply text-indigo-500 font-bold;
+}
