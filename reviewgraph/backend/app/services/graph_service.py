@@ -24,7 +24,13 @@ class GraphService:
             user: Neo4j username
             password: Neo4j password
         """
-        self._driver = AsyncGraphDatabase.driver(uri, auth=(user, password))
+        self._driver = AsyncGraphDatabase.driver(
+            uri,
+            auth=(user, password),
+            max_connection_lifetime=3600,
+            max_connection_pool_size=50,
+            connection_acquisition_timeout=30,
+        )
         logger.info("GraphService initialized with URI: %s", uri)
 
     async def close(self):
@@ -116,7 +122,7 @@ class GraphService:
 
         Args:
             reviews: List of dicts with keys: review_id, product_id, reviewer_id,
-                     rating, text, model_score, predicted_class, date, etc.
+                     rating, review_text, model_score, predicted_class, review_date, etc.
         """
         query = """
         UNWIND $reviews AS rv
@@ -124,12 +130,12 @@ class GraphService:
         SET r.product_id       = coalesce(rv.product_id, r.product_id),
             r.reviewer_id      = coalesce(rv.reviewer_id, r.reviewer_id),
             r.rating           = coalesce(rv.rating, r.rating),
-            r.text             = coalesce(rv.text, r.text),
+            r.review_text     = coalesce(rv.review_text, r.review_text),
             r.model_score      = coalesce(rv.model_score, r.model_score),
             r.predicted_class  = coalesce(rv.predicted_class, r.predicted_class),
-            r.date             = coalesce(rv.date, r.date),
+            r.review_date     = coalesce(rv.review_date, r.review_date),
             r.verified_purchase= coalesce(rv.verified_purchase, r.verified_purchase),
-            r.helpful_votes    = coalesce(rv.helpful_votes, r.helpful_votes)
+            r.helpful_vote    = coalesce(rv.helpful_vote, r.helpful_vote)
         WITH r, rv
         MATCH (prod:Product {product_id: rv.product_id})
         MERGE (r)-[:REVIEWS]->(prod)
@@ -339,7 +345,7 @@ class GraphService:
                 }
             )
 
-        # Build edges
+        # Build edges only when both endpoints survived the node cap.
         for rel in raw_rels:
             rel_id = str(rel.id)
             if rel_id in seen_edge_ids:
@@ -357,6 +363,8 @@ class GraphService:
 
             source_id = _extract_id(src_props)
             target_id = _extract_id(tgt_props)
+            if source_id not in seen_node_ids or target_id not in seen_node_ids:
+                continue
 
             edges_out.append(
                 {
@@ -426,7 +434,9 @@ class GraphService:
         RETURN DISTINCT
             reviewer.reviewer_id AS reviewer_id,
             reviewer.name AS reviewer_name,
-            p2.product_id AS other_product_id,
+        r.review_id AS review_id,
+        r2.review_id AS other_review_id,
+        p2.product_id AS other_product_id,
             p2.name AS other_product_name
         LIMIT 200
         """
@@ -454,10 +464,25 @@ class GraphService:
 
         # --- Compute suspiciousness score ---
         total_reviews = len(reviews)
+        review_limit = 500
+        signal_limit = 1000
+        similar_limit = 200
+        overlap_limit = 200
+        unique_similarity_pairs = {
+            tuple(sorted((p.get("review_a"), p.get("review_b"))))
+            for p in similar_pairs
+            if p.get("review_a") and p.get("review_b")
+        }
+        similarity_review_ids = {
+            review_id
+            for pair in unique_similarity_pairs
+            for review_id in pair
+        }
 
-        avg_model_score: float = 0.0
-        if reviews:
-            scores = [r.get("model_score") or 0.0 for r in reviews]
+        scored_reviews = [r for r in reviews if r.get("model_score") is not None]
+        avg_model_score: Optional[float] = None
+        if scored_reviews:
+            scores = [float(r["model_score"]) for r in scored_reviews]
             avg_model_score = sum(scores) / len(scores)
 
         suspicious_signals = [
@@ -465,7 +490,7 @@ class GraphService:
             {"duplicate_text", "burst_reviews", "rating_outlier", "unverified_purchase",
              "short_text", "high_similarity", "reviewer_collusion"}
         ]
-        suspicious_signal_ratio: float = (
+        suspicious_signal_ratio: Optional[float] = (
             len(suspicious_signals) / len(signals) if signals else 0.0
         )
 
@@ -476,17 +501,20 @@ class GraphService:
             if unique_reviewers_on_product else 0.0
         )
 
-        text_similarity_ratio: float = (
-            len(similar_pairs) / total_reviews if total_reviews else 0.0
+        text_similarity_ratio: Optional[float] = (
+            len(similarity_review_ids) / total_reviews if total_reviews else 0.0
         )
-        # Clamp to [0, 1]
-        text_similarity_ratio = min(text_similarity_ratio, 1.0)
-
+        components = [
+            (avg_model_score, 0.4),
+            (suspicious_signal_ratio, 0.3 if signals else None),
+            (reviewer_overlap_ratio, 0.2 if unique_reviewers_on_product else None),
+            (text_similarity_ratio, 0.1 if total_reviews else None),
+        ]
+        available_weight = sum(weight for value, weight in components if value is not None and weight)
         suspiciousness_score = (
-            avg_model_score * 0.4
-            + suspicious_signal_ratio * 0.3
-            + reviewer_overlap_ratio * 0.2
-            + text_similarity_ratio * 0.1
+            sum(float(value) * weight for value, weight in components if value is not None and weight)
+            / available_weight
+            if available_weight else 0.0
         )
         suspiciousness_score = round(min(max(suspiciousness_score, 0.0), 1.0), 4)
 
@@ -513,7 +541,8 @@ class GraphService:
             path = (
                 f"Product [{product_id}] ← REVIEWS ← review "
                 f"← WROTE ← Reviewer [{overlap['reviewer_id']}] "
-                f"→ WROTE → review → REVIEWS → Product [{overlap['other_product_id']}]"
+                f"→ WROTE → review [{overlap['other_review_id']}] "
+                f"→ REVIEWS → Product [{overlap['other_product_id']}]"
             )
             graph_paths.append(path)
 
@@ -530,14 +559,23 @@ class GraphService:
             "similar_pairs": similar_pairs,
             "reviewer_overlaps": reviewer_overlaps,
             "connected_products": connected_products,
+            "coverage": {
+                "reviews": {"returned": len(reviews), "limit": review_limit, "truncated": len(reviews) >= review_limit},
+                "signals": {"returned": len(signals), "limit": signal_limit, "truncated": len(signals) >= signal_limit},
+                "similar_pairs": {"returned": len(similar_pairs), "limit": similar_limit, "truncated": len(similar_pairs) >= similar_limit},
+                "reviewer_overlaps": {"returned": len(reviewer_overlaps), "limit": overlap_limit, "truncated": len(reviewer_overlaps) >= overlap_limit},
+            },
             "suspiciousness": {
                 "score": suspiciousness_score,
                 "level": level,
                 "breakdown": {
-                    "avg_model_score": round(avg_model_score, 4),
+                    "avg_model_score": round(avg_model_score, 4) if avg_model_score is not None else None,
+                    "model_score_available": bool(scored_reviews),
                     "suspicious_signal_ratio": round(suspicious_signal_ratio, 4),
                     "reviewer_overlap_ratio": round(reviewer_overlap_ratio, 4),
                     "text_similarity_ratio": round(text_similarity_ratio, 4),
+                    "similarity_review_coverage": round(text_similarity_ratio, 4),
+                    "unique_similarity_pairs": len(unique_similarity_pairs),
                 },
             },
             "graph_paths": graph_paths,

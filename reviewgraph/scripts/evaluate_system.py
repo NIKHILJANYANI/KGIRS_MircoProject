@@ -143,6 +143,7 @@ async def evaluate_retrieval(
     mrr_scores = []
     ndcg10_scores = []
     latencies = []
+    failed_requests = 0
 
     async with httpx.AsyncClient(base_url=base_url, timeout=30.0) as client:
         for q in queries:
@@ -159,6 +160,7 @@ async def evaluate_retrieval(
                 latencies.append(latency_ms)
 
                 if resp.status_code != 200:
+                    failed_requests += 1
                     logger.warning("Search returned %d for query '%s'", resp.status_code, q["query"])
                     continue
 
@@ -172,6 +174,7 @@ async def evaluate_retrieval(
                 ndcg10_scores.append(ndcg_at_k(retrieved_ids, relevant_ids, 10))
 
             except Exception as e:
+                failed_requests += 1
                 logger.error("Retrieval error for query '%s': %s", q["query"], e)
 
     return {
@@ -182,6 +185,8 @@ async def evaluate_retrieval(
         "ndcg_at_10": float(np.mean(ndcg10_scores)) if ndcg10_scores else 0.0,
         "avg_latency_ms": float(np.mean(latencies)) if latencies else 0.0,
         "num_queries": len(mrr_scores),
+        "failed_requests": failed_requests,
+        "attempted_queries": len(queries),
         "note": "Silver-standard benchmark. Relevant items = reviews containing query term."
     }
 
@@ -197,7 +202,7 @@ async def evaluate_explainability(
     """
     For each product, fetch investigation and verify:
     1. Every cited review_id exists in source_records
-    2. Every graph_path has at least 2 entities
+    2. Every graph_path has at least 2 verified entity references
     3. explanation_summary contains none of the forbidden claims
     4. limitations section is non-empty
     """
@@ -215,29 +220,36 @@ async def evaluate_explainability(
                     continue
 
                 data = resp.json()
+                explanation = data.get("explanation") or {}
                 issues = []
+                if not explanation:
+                    issues.append("No structured explanation returned.")
+                data_to_check = explanation or data
 
                 # Check source records
-                source_records = set(data.get("source_records", []))
-                suspicious_reviews = [r.get("review_id") for r in data.get("suspicious_reviews", [])]
+                source_records = set(data_to_check.get("source_records", []))
+                suspicious_reviews = [
+                    r.get("review_id")
+                    for r in data_to_check.get("suspicious_reviews", data_to_check.get("model_predictions", []))
+                ]
                 for rid in suspicious_reviews:
                     if rid and rid not in source_records:
                         issues.append(f"Review {rid} in suspicious_reviews but not in source_records")
 
                 # Check graph paths have >= 2 entities
-                for path in data.get("graph_paths", []):
-                    entities = path.get("entities", [])
+                for path in data_to_check.get("graph_paths", []):
+                    entities = path.get("entities") or path.get("referenced_entity_ids", [])
                     if len(entities) < 2:
                         issues.append(f"Graph path has only {len(entities)} entity")
 
                 # Check explanation summary for forbidden claims
-                summary = (data.get("explanation_summary") or "").lower()
+                summary = (data_to_check.get("explanation_summary") or "").lower()
                 for claim in forbidden_claims:
                     if claim in summary:
                         issues.append(f"Explanation summary contains unsupported claim: '{claim}'")
 
                 # Check limitations non-empty
-                limitations = data.get("limitations", [])
+                limitations = data_to_check.get("limitations", [])
                 if not limitations:
                     issues.append("No limitations listed in explanation")
 
@@ -246,7 +258,7 @@ async def evaluate_explainability(
                     "valid": len(issues) == 0,
                     "issues": issues,
                     "source_records_count": len(source_records),
-                    "graph_paths_count": len(data.get("graph_paths", [])),
+                    "graph_paths_count": len(data_to_check.get("graph_paths", [])),
                 })
             except Exception as e:
                 logger.error("Explainability check failed for %s: %s", pid, e)
@@ -348,6 +360,17 @@ async def run_evaluation(args: argparse.Namespace) -> None:
     if csv_path.exists():
         logger.info("Loading dataset from %s for benchmark construction ...", csv_path)
         df = pd.read_csv(csv_path, nrows=5000)
+        label_columns = [c for c in ("label", "is_fake", "fake", "fraud_label") if c in df.columns]
+        valid_labels = any(
+            df[c].notna().any() and df[c].astype(str).str.strip().ne("").any()
+            for c in label_columns
+        )
+        if not valid_labels:
+            results["classification_metrics"] = {
+                "status": "not_evaluable",
+                "message": "The active dataset has no valid ground-truth fraud labels.",
+                "dataset": str(csv_path),
+            }
         benchmark_queries = build_benchmark_queries(df)
         # Grab up to 5 product IDs for explainability tests
         pid_col = next((c for c in ["product_id", "asin", "productID"] if c in df.columns), None)

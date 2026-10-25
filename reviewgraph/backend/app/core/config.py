@@ -50,7 +50,9 @@ class Settings(BaseSettings):
     FAISS_INDEX_PATH: str = Field(default="../models/faiss_index.bin")
     EMBEDDINGS_CACHE_PATH: str = Field(default="../models/embeddings_cache.npz")
 
-    DATASET_PATH: str = Field(default="../data/raw/fake_reviews.csv")
+    DATASET_PATH: str = Field(
+        default="../data/external/amazon_reviews_electronics.csv"
+    )
     SAMPLE_DATASET_PATH: str = Field(default="../data/sample/sample_reviews.csv")
 
     # ------------------------------------------------------------------ #

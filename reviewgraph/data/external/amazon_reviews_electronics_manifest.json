@@ -1,0 +1,60 @@
+{
+  "dataset_name": "Amazon Reviews 2023",
+  "official_source_url": "https://amazon-reviews-2023.github.io/",
+  "download_url": "https://mcauleylab.ucsd.edu/public_datasets/data/amazon_2023/raw/review_categories/Electronics.jsonl.gz",
+  "category": "Electronics",
+  "sampling_method": "Sequential bounded stream from the official Electronics JSONL.GZ source; stopped after 2,000 retained records.",
+  "records_downloaded": 2001,
+  "records_retained": 2000,
+  "records_removed_unusable": 1,
+  "records_deduplicated": 0,
+  "output_file": "amazon_reviews_electronics.csv",
+  "columns": {
+    "review_id": "string",
+    "product_id": "string",
+    "reviewer_id": "string (SHA-256 hash of source user_id)",
+    "rating": "number",
+    "review_title": "string",
+    "review_text": "string",
+    "review_date": "ISO date derived from source timestamp (UTC)",
+    "verified_purchase": "boolean or empty when unavailable",
+    "helpful_vote": "integer or empty when unavailable",
+    "product_title": "string (empty; not present in review-only source)",
+    "category": "string"
+  },
+  "transformations": [
+    "Created stable sequential review IDs because the source review records do not provide a review ID.",
+    "Used parent_asin as product_id, falling back to asin only when parent_asin was absent.",
+    "SHA-256 hashed source user_id values; original reviewer identifiers were not written to disk.",
+    "Converted source millisecond timestamps to UTC ISO dates.",
+    "Removed records without meaningful review text, product ID, or reviewer ID.",
+    "Removed duplicates by first occurrence of (product_id, anonymized reviewer_id, normalized review_text).",
+    "Preserved source rating, title, text, verification flag, and helpful vote values without inventing missing values."
+  ],
+  "unavailable_fields": [
+    "product_title is unavailable in the category review-only source and is blank.",
+    "A source review ID is unavailable; review_id is locally generated and stable for this preserved sample order."
+  ],
+  "prepared_date": "2026-10-25",
+  "usage_notes": "The dataset includes explicitly marked weak labels from a separate labeling file. They are not verified fraud ground truth; use them only for exploratory analysis unless independently validated.",
+  "weak_labels": {
+    "source_file": "amazon_reviews_electronics_weak_labels.csv",
+    "records_matched": 2000,
+    "distribution": {
+      "unlabeled": 1677,
+      "genuine": 285,
+      "suspicious": 38
+    },
+    "label_sources": {
+      "needs_manual_review": 1677,
+      "weak_rule_verified_substantive_review": 285,
+      "weak_rule_duplicate_or_activity_pattern": 38
+    },
+    "confidence_distribution": {
+      "not_assigned": 1677,
+      "low_to_medium": 323
+    },
+    "status": "weak_labels_not_ground_truth",
+    "limitations": "Labels are heuristic or manual-review placeholders and must not be used as verified fraud ground truth or proof of authenticity."
+  }
+}

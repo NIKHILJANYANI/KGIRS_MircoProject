@@ -93,11 +93,13 @@ async def search(
                     query=body.query,
                     limit=top_k,
                     page=1,
+                    product_id=body.product_id,
                 )
             elif body.mode == SearchMode.semantic:
                 raw = await retrieval_service.semantic_search(
                     query=body.query,
                     limit=top_k,
+                    product_id=body.product_id,
                 )
             elif body.mode == SearchMode.graph:
                 raw = await retrieval_service.graph_search(
@@ -123,10 +125,10 @@ async def search(
                 {
                     "review_id": r.get("review_id", ""),
                     "text": r.get("text", ""),
-                    "score": r.get("model_score") or 0.0,
+                    "score": r.get("score") or 0.0,
                     "product_id": r.get("product_id", ""),
                     "product_name": r.get("product_name", ""),
-                    "predicted_class": r.get("predicted_class", "unknown"),
+                    "predicted_class": r.get("predicted_class"),
                     "source": "graph_keyword",
                 }
                 for r in results_raw
@@ -198,7 +200,38 @@ async def search(
             "graph_score": _clamp_score(r.get("graph_score")),
             "model_score": float(r["model_score"]) if r.get("model_score") is not None else None,
             "predicted_class": r.get("predicted_class"),
+            "retrieval_sources": r.get("retrieval_sources", []),
+            "source_ranks": r.get("source_ranks", {}),
+            "relevance_explanation": r.get("relevance_explanation"),
         })
+
+    # Search indexes do not store live classifier outputs for the active
+    # unlabeled dataset. Add predictions for returned reviews without turning
+    # missing or failed inference into a fabricated label.
+    classification_service = getattr(request.app.state, "classification_service", None)
+    if classification_service is not None and classification_service.is_ready():
+        for item in page_results:
+            if item["type"] != "review" or not item["text"]:
+                continue
+            if item["model_score"] is not None or item["predicted_class"] is not None:
+                continue
+            try:
+                prediction = classification_service.predict_single(item["text"])
+                item["model_score"] = prediction.get("model_score")
+                raw_class = prediction.get("predicted_class")
+                item["predicted_class"] = (
+                    "Suspicious"
+                    if raw_class in (1, "1", "fake", "suspicious", "CG")
+                    else "Genuine"
+                    if raw_class in (0, "0", "genuine", "legitimate")
+                    else None
+                )
+            except Exception as exc:
+                logger.warning(
+                    "Search classifier prediction failed for %s: %s",
+                    item["review_id"],
+                    exc,
+                )
 
     latency_ms = round(time.monotonic() * 1000 - start_ms, 2)
 
@@ -213,6 +246,11 @@ async def search(
         "latency_ms": latency_ms,
         "status": search_status,
     }
+    if not page_results:
+        response["guidance"] = (
+            "No strong matches were found. Try a broader product concern, "
+            "a synonym, or remove a product filter."
+        )
     if warning:
         response["warning"] = warning
     if body.min_score is not None:

@@ -141,11 +141,13 @@ export default function Overview() {
   useEffect(() => { fetchData(); }, []);
 
   // ── derive chart data from stats ──
+  const labelValues = stats?.weak_label_distribution ?? stats?.label_distribution;
+  const usingWeakLabels = Boolean(stats?.weak_label_distribution);
   const labelDist = stats
     ? [
-        { name: 'Suspicious', value: stats.label_distribution?.suspicious ?? 0 },
-        { name: 'Genuine',    value: stats.label_distribution?.genuine    ?? 0 },
-        { name: 'Unlabeled',  value: stats.label_distribution?.unlabeled  ?? 0 },
+        { name: 'Suspicious', value: labelValues?.suspicious ?? 0 },
+        { name: 'Genuine',    value: labelValues?.genuine    ?? 0 },
+        { name: 'Unlabeled',  value: labelValues?.unlabeled  ?? 0 },
       ]
     : [];
 
@@ -269,7 +271,14 @@ export default function Overview() {
 
               {/* Pie chart */}
               <div className="bg-gray-900/60 border border-gray-700/50 rounded-2xl p-6">
-                <p className="text-sm font-semibold text-gray-300 mb-4">Review Label Distribution</p>
+                <p className="text-sm font-semibold text-gray-300 mb-1">
+                  {usingWeakLabels ? 'Weak Label Distribution' : 'Review Label Distribution'}
+                </p>
+                {usingWeakLabels && (
+                  <p className="text-[11px] text-amber-400/80 mb-3">
+                    Heuristic labels for exploration only; not verified fraud ground truth.
+                  </p>
+                )}
                 {labelDist.every(d => d.value === 0) ? (
                   <p className="text-gray-500 text-sm text-center py-10">No label data available</p>
                 ) : (

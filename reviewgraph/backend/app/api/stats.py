@@ -80,20 +80,13 @@ async def get_stats(request: Request) -> Dict[str, Any]:
     labeled_reviews = 0
     suspicious_reviews = 0
     genuine_reviews = 0
-    avg_rating = 3.91
-    label_distribution = {"suspicious": 20, "genuine": 80, "unlabeled": 0}
-    model_score_distribution = {
-        "0.0 - 0.2": 72,
-        "0.2 - 0.4": 8,
-        "0.4 - 0.6": 0,
-        "0.6 - 0.8": 2,
-        "0.8 - 1.0": 18,
-    }
+    avg_rating = None
+    label_distribution = {"suspicious": 0, "genuine": 0, "unlabeled": 0}
+    weak_label_distribution: Dict[str, int] = {}
+    model_score_distribution: Dict[str, int] = {}
 
     # Load actual dataset stats from processed CSV if available
     reviews_file = os.path.join(settings.DATA_PROCESSED_PATH, "reviews_processed.csv")
-    if not os.path.exists(reviews_file):
-        reviews_file = os.path.join(settings.DATA_SAMPLE_PATH, "sample_reviews.csv")
 
     if os.path.exists(reviews_file):
         try:
@@ -110,7 +103,8 @@ async def get_stats(request: Request) -> Dict[str, Any]:
                 avg_rating = round(float(df["rating"].mean()), 2)
 
             label_col = "label" if "label" in df.columns else ("is_fake" if "is_fake" in df.columns else None)
-            if label_col:
+            has_weak_labels = "label_source" in df.columns
+            if label_col and not has_weak_labels:
                 labeled_df = df[df[label_col].notna()]
                 labeled_reviews = len(labeled_df)
                 suspicious_reviews = int(
@@ -123,21 +117,49 @@ async def get_stats(request: Request) -> Dict[str, Any]:
                     "genuine": genuine_reviews,
                     "unlabeled": unlabeled,
                 }
+            else:
+                label_distribution = {
+                    "suspicious": 0,
+                    "genuine": 0,
+                    "unlabeled": len(df),
+                }
+            if has_weak_labels and label_col:
+                weak_counts = df[label_col].fillna("unlabeled").astype(str).str.lower().value_counts()
+                weak_label_distribution = {
+                    "suspicious": int(weak_counts.get("suspicious", 0)),
+                    "genuine": int(weak_counts.get("genuine", 0)),
+                    "unlabeled": int(weak_counts.get("unlabeled", 0)),
+                }
+            if "model_score" in df.columns:
+                scores = df["model_score"].dropna()
+                if not scores.empty:
+                    bins = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
+                    labels = ["0.0 - 0.2", "0.2 - 0.4", "0.4 - 0.6", "0.6 - 0.8", "0.8 - 1.0"]
+                    bucketed = pd.cut(scores.clip(0, 1), bins=bins, labels=labels, include_lowest=True)
+                    model_score_distribution = {
+                        label: int((bucketed == label).sum()) for label in labels
+                    }
         except Exception as exc:
             logger.warning("Stats – failed to read dataset CSV: %s", exc)
 
     return {
-        "total_products": total_products or 5,
-        "total_reviews": total_reviews or 100,
-        "total_reviewers": total_reviewers or 30,
-        "labeled_reviews": labeled_reviews or total_reviews or 100,
-        "suspicious_reviews": suspicious_reviews or 20,
-        "genuine_reviews": genuine_reviews or 80,
-        "avg_rating": avg_rating or 3.91,
+        "total_products": total_products,
+        "total_reviews": total_reviews,
+        "total_reviewers": total_reviewers,
+        "labeled_reviews": labeled_reviews,
+        "suspicious_reviews": suspicious_reviews,
+        "genuine_reviews": genuine_reviews,
+        "avg_rating": avg_rating,
         "label_distribution": label_distribution,
+        "weak_label_distribution": weak_label_distribution,
+        "label_status": (
+            "weak_labels_not_ground_truth"
+            if weak_label_distribution
+            else "ground_truth_unavailable"
+        ),
         "model_score_distribution": model_score_distribution,
         "model_version": model_meta.get("model_version", "1.0-pipeline"),
-        "dataset_size": total_reviews or 100,
+        "dataset_size": total_reviews,
         "model_status": "loaded" if model_status == "ok" else model_status,
         "graph_status": "connected" if graph_status == "ok" else graph_status,
         "embedding_status": "loaded" if embedding_status == "ok" else embedding_status,

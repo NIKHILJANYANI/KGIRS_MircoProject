@@ -12,6 +12,8 @@ import {
   Info,
 } from 'lucide-react'
 import { getProductGraph } from '../services/api'
+
+const PRODUCT_RECOMMENDATIONS = ['B0742FQ3Q3', 'B00002JXFH']
 import clsx from 'clsx'
 
 // ── Cytoscape stylesheet ─────────────────────────────────────────────────────
@@ -173,7 +175,7 @@ export default function GraphView() {
   const cyInstance  = useRef(null)
 
   const urlParams = new URLSearchParams(window.location.search)
-  const initialId = urlParams.get('product_id') || 'P001'
+  const initialId = urlParams.get('product_id') || ''
 
   const [productId, setProductId] = useState(initialId)
   const [loading, setLoading]     = useState(false)
@@ -307,7 +309,7 @@ export default function GraphView() {
   function fitAll()  { cyInstance.current?.fit(undefined, 30) }
 
   useEffect(() => {
-    loadGraph(initialId)
+    if (initialId) loadGraph(initialId)
     return () => { cyInstance.current?.destroy() }
   }, []) // eslint-disable-line
 
@@ -337,6 +339,20 @@ export default function GraphView() {
               className="input-field w-full pl-8 text-sm"
             />
           </div>
+        </div>
+
+        <div className="w-full flex flex-wrap items-center gap-2">
+          <span className="text-xs text-gray-500">Try a current product:</span>
+          {PRODUCT_RECOMMENDATIONS.map(id => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setProductId(id)}
+              className="px-2.5 py-1 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-full text-xs text-gray-300 font-mono transition"
+            >
+              {id}
+            </button>
+          ))}
         </div>
 
         <div>
@@ -371,19 +387,6 @@ export default function GraphView() {
           </>
         )}
 
-        <div className="w-full flex items-center gap-2 pt-2 border-t border-gray-800">
-          <span className="text-xs text-gray-500 uppercase tracking-wider">Samples:</span>
-          {['P001', 'P002', 'P003', 'P004', 'P005'].map(id => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => { setProductId(id); loadGraph(id); }}
-              className="px-2.5 py-1 bg-indigo-950/60 hover:bg-indigo-900 border border-indigo-700/60 rounded-full text-xs text-indigo-300 transition font-mono"
-            >
-              {id}
-            </button>
-          ))}
-        </div>
       </form>
 
       {error && (

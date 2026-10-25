@@ -17,6 +17,9 @@ import {
   Layers,
   Search,
 } from 'lucide-react';
+import { normalizeReviewText } from '../utils/reviewText';
+
+const REVIEW_RECOMMENDATIONS = ['AMZ23_ELEC_0001778'];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function StarRating({ rating }) {
@@ -130,8 +133,8 @@ export default function ReviewDetails() {
   const routeParams = useParams();
 
   const urlId = params.get('id') || params.get('review_id') || routeParams.id || '';
-  const [reviewId, setReviewId] = useState(urlId || 'SYNTH_R071');
-  const [inputId, setInputId] = useState(urlId || 'SYNTH_R071');
+  const [reviewId, setReviewId] = useState(urlId);
+  const [inputId, setInputId] = useState(urlId);
 
   const [review, setReview] = useState(null);
   const [related, setRelated] = useState([]);
@@ -168,7 +171,7 @@ export default function ReviewDetails() {
         rating: rawReview?.rating,
         review_text: rawReview?.review_text || rawReview?.text || '',
         dataset_label: rawReview?.dataset_label || (rawReview?.is_synthetic ? 'Synthetic' : 'Unlabeled'),
-        is_synthetic: rawReview?.is_synthetic ?? true,
+        is_synthetic: rawReview?.is_synthetic,
         ml_prediction: livePred || {
           score: rawReview?.model_score,
           predicted_class: rawReview?.predicted_class,
@@ -229,8 +232,9 @@ export default function ReviewDetails() {
   const model_version = ml_prediction?.model_version ?? currentReview.model_version;
   const feature_contributions = ml_prediction?.feature_contributions ?? currentReview.feature_contributions;
 
-  const wordCount = review_text ? review_text.split(/\s+/).filter(Boolean).length : 0;
-  const charCount = review_text ? review_text.length : 0;
+  const displayReviewText = normalizeReviewText(review_text);
+  const wordCount = displayReviewText ? displayReviewText.split(/\s+/).filter(Boolean).length : 0;
+  const charCount = displayReviewText.length;
 
   const formattedDate = timestamp
     ? new Date(timestamp).toLocaleString('en-US', {
@@ -253,7 +257,7 @@ export default function ReviewDetails() {
               type="text"
               value={inputId}
               onChange={(e) => setInputId(e.target.value)}
-              placeholder="Enter review ID (e.g. SYNTH_R071)"
+              placeholder="Enter a review ID from search results"
               className="w-full bg-gray-800 border border-gray-700 text-white placeholder-gray-500 rounded-xl py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
             />
           </div>
@@ -267,25 +271,20 @@ export default function ReviewDetails() {
           </button>
         </form>
 
-        <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-gray-800">
-          <span className="text-xs text-gray-500 uppercase tracking-wider">Samples:</span>
-          {[
-            { id: 'SYNTH_R071', tag: 'Fake / 5★' },
-            { id: 'SYNTH_R074', tag: 'Fake / 5★' },
-            { id: 'SYNTH_R001', tag: 'Genuine / 5★' },
-            { id: 'SYNTH_R010', tag: 'Genuine / 4★' },
-          ].map(s => (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs text-gray-500">Try a current review:</span>
+          {REVIEW_RECOMMENDATIONS.map((id) => (
             <button
-              key={s.id}
+              key={id}
               type="button"
-              onClick={() => handleSelectSample(s.id)}
-              className="px-3 py-1 bg-indigo-950/60 hover:bg-indigo-900 border border-indigo-700/60 rounded-full text-xs text-indigo-300 transition font-mono flex items-center gap-1"
+              onClick={() => handleSelectSample(id)}
+              className="px-2.5 py-1 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-full text-xs text-gray-300 font-mono transition"
             >
-              <span>{s.id}</span>
-              <span className="text-[10px] text-indigo-400/70">({s.tag})</span>
+              {id}
             </button>
           ))}
         </div>
+
       </section>
 
       {loading && <Skeleton />}
@@ -295,7 +294,7 @@ export default function ReviewDetails() {
           <AlertTriangle className="w-10 h-10 text-red-400 mx-auto" />
           <p className="text-xl text-gray-200 font-semibold">Review Not Found</p>
           <p className="text-red-300 text-sm">{error}</p>
-          <p className="text-gray-500 text-xs">Try selecting one of the sample reviews above.</p>
+          <p className="text-gray-500 text-xs">Open a review from search results or enter its current review ID.</p>
         </div>
       )}
 
@@ -338,8 +337,8 @@ export default function ReviewDetails() {
               <p className="text-gray-200 font-medium">{review_title}</p>
             )}
 
-            <blockquote className="relative border-l-4 border-indigo-600 bg-gray-800/60 rounded-r-lg px-4 py-3 text-gray-300 text-sm leading-relaxed italic">
-              {review_text || <span className="text-gray-600">No review text available.</span>}
+            <blockquote className="relative border-l-4 border-indigo-600 bg-gray-800/60 rounded-r-lg px-4 py-3 text-gray-300 text-sm leading-relaxed italic whitespace-pre-line">
+              {displayReviewText || <span className="text-gray-600">No review text available.</span>}
             </blockquote>
 
             <div className="flex flex-wrap gap-4 text-xs text-gray-500">
@@ -509,8 +508,8 @@ export default function ReviewDetails() {
                   </div>
 
                   {rel.review_text && (
-                    <p className="text-sm text-gray-400 line-clamp-3 leading-relaxed">
-                      {rel.review_text}
+                    <p className="text-sm text-gray-400 line-clamp-3 leading-relaxed whitespace-pre-line">
+                      {normalizeReviewText(rel.review_text)}
                     </p>
                   )}
 

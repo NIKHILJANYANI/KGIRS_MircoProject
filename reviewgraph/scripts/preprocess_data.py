@@ -93,7 +93,7 @@ def compute_reviewer_stats(df: pd.DataFrame, reviewer_col: str) -> pd.DataFrame:
         stats = stats.merge(avg_rating, on="reviewer_id", how="left")
 
     # fake review ratio if label available
-    label_col = _detect(df, ["label", "fake", "is_fake", "class", "category", "deceptive"])
+    label_col = _detect(df, ["label", "fake", "is_fake", "class", "deceptive"])
     if label_col:
         df_tmp = df.copy()
         df_tmp["_is_fake"] = df_tmp[label_col].apply(
@@ -128,7 +128,7 @@ def compute_product_stats(df: pd.DataFrame, product_col: str) -> pd.DataFrame:
         )
         stats = stats.merge(avg_rating, on="product_id", how="left")
 
-    label_col = _detect(df, ["label", "fake", "is_fake", "class", "category", "deceptive"])
+    label_col = _detect(df, ["label", "fake", "is_fake", "class", "deceptive"])
     if label_col:
         df_tmp = df.copy()
         df_tmp["_is_fake"] = df_tmp[label_col].apply(
@@ -214,7 +214,7 @@ def preprocess(df: pd.DataFrame) -> pd.DataFrame:
     reviewer_col = _detect(df, ["reviewer_id", "reviewerid", "reviewer", "user_id", "userid", "user"])
     product_col = _detect(df, ["product_id", "productid", "asin", "product", "item_id", "item"])
     rating_col = _detect(df, ["rating", "stars", "score", "overall"])
-    label_col = _detect(df, ["label", "fake", "is_fake", "class", "category", "deceptive"])
+    label_col = _detect(df, ["label", "fake", "is_fake", "class", "deceptive"])
     time_col = _detect(df, ["timestamp", "date", "review_date", "reviewtime", "time"])
     id_col = _detect(df, ["review_id", "reviewid", "id"])
 
@@ -293,7 +293,10 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--dataset-path",
-        default=str(Path(__file__).parent / ".." / "data" / "raw" / "fake_reviews.csv"),
+        default=str(
+            Path(__file__).parent / ".." / "data" / "external"
+            / "amazon_reviews_electronics.csv"
+        ),
         help="Path to raw CSV/JSON dataset.",
     )
     parser.add_argument(

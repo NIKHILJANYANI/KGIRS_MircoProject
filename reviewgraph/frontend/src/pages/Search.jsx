@@ -52,11 +52,11 @@ const MODES = [
 ];
 
 const EXAMPLE_SEARCHES = [
-  'wireless earbuds noise cancelling',
-  'suspicious five star review pattern',
-  'duplicate reviews same product',
-  'fake reviewer network',
-  'battery life laptop complaints',
+  'battery drains too quickly',
+  'needs frequent charging',
+  'wireless earbuds connection issues',
+  'laptop overheating',
+  'charger stopped working',
 ];
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
@@ -110,7 +110,7 @@ function SkeletonResultCard() {
 
 // ─── result card ──────────────────────────────────────────────────────────────
 
-function ResultCard({ result, rank }) {
+function ResultCard({ result, rank, query }) {
   const isProduct = result.type === 'product';
   const title = result.title
     ?? (result.text ? result.text.slice(0, 80) + (result.text.length > 80 ? '…' : '') : result.id);
@@ -124,7 +124,8 @@ function ResultCard({ result, rank }) {
   const relevancePct = Math.round(normalized * 100);
   const modelScore = result.model_score;
 
-  const modelBadgeColor = modelScore !== undefined
+  const hasModelSignal = modelScore !== undefined && modelScore !== null;
+  const modelBadgeColor = hasModelSignal
     ? modelScore > 0.7
       ? 'bg-red-800/50 text-red-300 border-red-700/50'
       : modelScore > 0.4
@@ -132,7 +133,7 @@ function ResultCard({ result, rank }) {
         : 'bg-green-800/50 text-green-300 border-green-700/50'
     : null;
 
-  const modelLabel = modelScore !== undefined
+  const modelLabel = hasModelSignal
     ? modelScore > 0.7 ? 'Suspicious' : modelScore > 0.4 ? 'Uncertain' : 'Genuine'
     : null;
 
@@ -156,6 +157,11 @@ function ResultCard({ result, rank }) {
               {modelLabel}
             </span>
           )}
+          {!isProduct && !hasModelSignal && (
+            <p className="text-[10px] text-gray-500">
+              Classifier signal unavailable; relevance is based on retrieval evidence.
+            </p>
+          )}
         </div>
         {/* combined score */}
         <div className="text-right flex-shrink-0">
@@ -177,6 +183,17 @@ function ResultCard({ result, rank }) {
         <p className="text-xs text-gray-400 leading-relaxed">{excerpt}</p>
       )}
 
+      {result.relevance_explanation?.reason && (
+        <div className="rounded-lg bg-indigo-950/30 border border-indigo-800/40 px-3 py-2">
+          <p className="text-[10px] uppercase tracking-wide text-indigo-400 mb-0.5">
+            Why this matches
+          </p>
+          <p className="text-xs text-indigo-200/80">
+            {result.relevance_explanation.reason}
+          </p>
+        </div>
+      )}
+
       {/* sub-scores */}
       <div className="space-y-1 pt-1">
         {result.keyword_score  !== undefined && <div className="flex items-center gap-2"><span className="text-[10px] text-gray-500 w-16 flex-shrink-0">Keyword</span>{scoreBar(result.keyword_score, 'blue')}</div>}
@@ -185,9 +202,9 @@ function ResultCard({ result, rank }) {
       </div>
 
       {/* model score row */}
-      {modelScore !== undefined && (
+      {hasModelSignal && (
         <div className="flex items-center gap-2">
-          <span className="text-[10px] text-gray-500 w-16 flex-shrink-0">ML Score</span>
+          <span className="text-[10px] text-gray-500 w-16 flex-shrink-0">Model signal</span>
           <div className="flex-1 h-1.5 bg-gray-700 rounded-full overflow-hidden">
             <div
               className="h-full bg-red-500 rounded-full transition-all"
@@ -200,6 +217,20 @@ function ResultCard({ result, rank }) {
 
       {/* footer link */}
       <div className="pt-1">
+        {result.product_id && !isProduct && (
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <p className="text-[10px] text-gray-500">
+              Product: <span className="text-gray-400 font-mono">{result.product_id}</span>
+              {result.reviewer_id && <> · Reviewer: <span className="font-mono">{result.reviewer_id}</span></>}
+            </p>
+            <a
+              href={`/investigation?product_id=${encodeURIComponent(result.product_id)}&query=${encodeURIComponent(query)}&review_id=${encodeURIComponent(result.review_id ?? '')}`}
+              className="text-[10px] text-indigo-400 hover:text-indigo-300 transition"
+            >
+              Investigate product
+            </a>
+          </div>
+        )}
         <a
           href={isProduct ? `/investigation?product_id=${result.id}` : `/reviews?id=${result.id}`}
           className="inline-flex items-center gap-1 text-xs text-indigo-400 hover:text-indigo-300 transition font-medium"
@@ -375,12 +406,14 @@ export default function Search() {
           <div className="text-center py-16 space-y-3">
             <SearchIcon className="w-14 h-14 text-gray-700 mx-auto" />
             <p className="text-gray-400 font-medium">No results found for "{query}"</p>
-            <p className="text-gray-600 text-sm">Try a different query or switch modes.</p>
+            <p className="text-gray-600 text-sm">
+              Try a broader concern, a synonym, or switch retrieval modes.
+            </p>
           </div>
         ) : (
           <div className="space-y-4">
             {results.map((r, i) => (
-              <ResultCard key={r.id ?? i} result={r} rank={(page - 1) * PAGE_SIZE + i + 1} />
+              <ResultCard key={r.id ?? i} result={r} query={query} rank={(page - 1) * PAGE_SIZE + i + 1} />
             ))}
           </div>
         )}

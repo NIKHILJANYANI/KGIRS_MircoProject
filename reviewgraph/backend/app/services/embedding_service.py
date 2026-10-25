@@ -21,6 +21,7 @@ from typing import Dict, List, Optional, Tuple
 
 import faiss
 import numpy as np
+import torch
 import pandas as pd
 
 logger = logging.getLogger(__name__)
@@ -117,6 +118,8 @@ class EmbeddingService:
         """
         if len(texts) != len(ids):
             raise ValueError("texts and ids must have the same length.")
+        if len(set(ids)) != len(ids):
+            raise ValueError("ids must be unique so FAISS positions remain unambiguous.")
 
         # ---- Check for valid cache -------------------------------------------
         if self._cache_valid(ids):
@@ -336,7 +339,20 @@ class EmbeddingService:
                     with open(id_map_p, "rb") as fh:
                         raw_id_map = pickle.load(fh)
                     if isinstance(raw_id_map, dict):
-                        self._id_map = [raw_id_map[i] for i in range(len(raw_id_map))]
+                        self._id_map = [
+                            raw_id_map[i] for i in range(len(raw_id_map))
+                            if i in raw_id_map
+                        ]
+
+            if (
+                self._embeddings is None
+                or len(self._id_map) != self._index.ntotal
+                or self._embeddings.shape[0] != self._index.ntotal
+                or len(set(self._id_map)) != len(self._id_map)
+            ):
+                raise ValueError(
+                    "FAISS index, embedding cache, and review ID map have different lengths."
+                )
 
             logger.info(
                 "Loaded FAISS index (%d vectors, dim=%d) from '%s'.",
@@ -363,7 +379,9 @@ class EmbeddingService:
             return False
         if len(self._id_map) != len(ids):
             return False
-        return set(self._id_map) == set(ids)
+        # Position is part of the index contract; a set comparison can pair a
+        # vector with the wrong review after a dataset reorder.
+        return self._id_map == list(ids) and len(set(ids)) == len(ids)
 
     # ------------------------------------------------------------------
     # Status helpers

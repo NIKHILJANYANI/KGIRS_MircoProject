@@ -5,6 +5,9 @@ import {
   ArrowRight, Shield, Activity, ExternalLink, Clock,
 } from 'lucide-react';
 import { getProductInvestigation } from '../services/api';
+import { normalizeReviewText } from '../utils/reviewText';
+
+const PRODUCT_RECOMMENDATIONS = ['B0742FQ3Q3', 'B00002JXFH'];
 
 class ErrorBoundary extends Component {
   constructor(props) {
@@ -259,8 +262,8 @@ function SignalCard({ signal }) {
 function ReviewRow({ review }) {
   const score   = review.model_score ?? review.suspiciousness_score ?? 0;
   const pct     = Math.min(100, Math.max(0, Math.round(score * 100)));
-  const cls     = review.predicted_class ?? (review.is_fake ? 'Suspicious' : (score > 0.5 ? 'Suspicious' : 'Genuine'));
-  const rawText = review.text ?? review.review_text ?? '';
+  const cls     = review.predicted_class ?? 'Unavailable';
+  const rawText = normalizeReviewText(review.text ?? review.review_text ?? '');
   const excerpt = rawText ? rawText.slice(0, 100) + (rawText.length > 100 ? '…' : '') : '—';
 
   return (
@@ -308,6 +311,7 @@ export default function Investigation() {
   // read product_id from URL query params
   const urlParams = new URLSearchParams(window.location.search);
   const initialId = urlParams.get('product_id') ?? '';
+  const searchQuery = urlParams.get('query') ?? '';
 
   const [productId,    setProductId]    = useState(initialId);
   const [inputId,      setInputId]      = useState(initialId);
@@ -315,7 +319,14 @@ export default function Investigation() {
   const [loading,      setLoading]      = useState(false);
   const [error,        setError]        = useState(null);
   const [recentIds,    setRecentIds]    = useState(() => {
-    try { return JSON.parse(localStorage.getItem(RECENT_KEY) ?? '[]'); }
+    try {
+      const stored = JSON.parse(localStorage.getItem(RECENT_KEY) ?? '[]');
+      const currentIds = Array.isArray(stored)
+        ? stored.filter((id) => !/^SYNTH_|^P00\d+$/.test(String(id)))
+        : [];
+      localStorage.setItem(RECENT_KEY, JSON.stringify(currentIds));
+      return currentIds;
+    }
     catch { return []; }
   });
 
@@ -376,6 +387,7 @@ export default function Investigation() {
     }, []),
   };
   const limitations = data?.limitations ?? (Array.isArray(data?.explanation?.limitations) ? data.explanation.limitations : []);
+  const coverage = data?.coverage ?? {};
   const explanation = typeof data?.explanation === 'string'
     ? data.explanation
     : (data?.explanation?.explanation_summary ?? data?.explanation_summary ?? data?.summary ?? '');
@@ -421,35 +433,39 @@ export default function Investigation() {
             </button>
           </form>
 
-          {/* sample / recent products */}
-          <div className="flex flex-wrap items-center gap-2 pt-1">
-            <span className="text-xs text-gray-500 uppercase tracking-wider">Samples:</span>
-            {['P001', 'P002', 'P003', 'P004', 'P005'].map((id) => (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs text-gray-500 uppercase tracking-wider">Try a product:</span>
+            {PRODUCT_RECOMMENDATIONS.map((id) => (
               <button
                 key={id}
                 type="button"
-                onClick={() => { setInputId(id); investigate(id); }}
-                className="px-3 py-1 bg-indigo-950/60 hover:bg-indigo-900 border border-indigo-700/60 rounded-full text-xs text-indigo-300 transition font-mono"
+                onClick={() => {
+                  setInputId(id);
+                  investigate(id);
+                }}
+                className="px-2.5 py-1 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-full text-xs text-gray-300 font-mono transition"
               >
                 {id}
               </button>
             ))}
-            {recentIds.length > 0 && (
-              <>
-                <span className="text-xs text-gray-500 uppercase tracking-wider ml-2">Recent:</span>
-                {recentIds.map((id) => (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => { setInputId(id); investigate(id); }}
-                    className="px-3 py-1 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-full text-xs text-gray-300 transition font-mono"
-                  >
-                    {id}
-                  </button>
-                ))}
-              </>
-            )}
           </div>
+
+          {/* recent products loaded from the current graph */}
+          {recentIds.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <span className="text-xs text-gray-500 uppercase tracking-wider">Recent:</span>
+              {recentIds.map((id) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => { setInputId(id); investigate(id); }}
+                  className="px-3 py-1 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-full text-xs text-gray-300 transition font-mono"
+                >
+                  {id}
+                </button>
+              ))}
+            </div>
+          )}
         </section>
 
         {/* ── loading ── */}
@@ -480,9 +496,24 @@ export default function Investigation() {
                 <SuspiciousnessGauge score={score} />
                 <div className="flex-1 space-y-3">
                   <p className="text-sm text-gray-400 leading-relaxed">
-                    This score aggregates multiple graph-structural and ML signals to estimate the
-                    probability that this product has been subjected to organised fake review activity.
+                    This score summarizes available graph and evidence signals. It is not a
+                    probability of fraud and does not establish coordinated activity.
                   </p>
+                  {searchQuery && (
+                    <p className="text-xs text-indigo-300">
+                      Opened from search: “{searchQuery}”
+                    </p>
+                  )}
+                  {Object.values(coverage).some((item) => item?.truncated) && (
+                    <div className="rounded-lg border border-yellow-700/50 bg-yellow-900/20 px-3 py-2 text-xs text-yellow-200">
+                      This investigation reached a query limit; the displayed evidence is a capped subset.
+                    </div>
+                  )}
+                  {data?.explanation_status?.warning && (
+                    <div className="rounded-lg border border-gray-700 bg-gray-800/60 px-3 py-2 text-xs text-gray-300">
+                      {data.explanation_status.warning}
+                    </div>
+                  )}
                   <div className="grid grid-cols-2 gap-3">
                     {[
                       { label: 'Score',    value: (score * 100).toFixed(1) + '%' },

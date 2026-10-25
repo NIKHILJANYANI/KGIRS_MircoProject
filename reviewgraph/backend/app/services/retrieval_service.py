@@ -10,9 +10,20 @@ import time
 import math
 import sqlite3
 import asyncio
+import re
 from typing import Dict, List, Optional, Any
 
 logger = logging.getLogger(__name__)
+
+_QUERY_SYNONYMS = {
+    "battery": ("battery", "charge", "charging", "power"),
+    "drain": ("drain", "drains", "draining"),
+    "quickly": ("quickly", "fast", "frequent"),
+    "slow": ("slow", "sluggish", "lag", "laggy"),
+    "broken": ("broken", "broke", "damaged", "stopped"),
+    "quality": ("quality", "build", "material", "materials"),
+    "refund": ("refund", "return", "replacement", "replace"),
+}
 
 
 class RetrievalService:
@@ -40,8 +51,6 @@ class RetrievalService:
             os.path.join(os.path.dirname(self.fts_db_path), "reviews_processed.csv"),
             "data/processed/reviews_processed.csv",
             "../data/processed/reviews_processed.csv",
-            "data/sample/sample_reviews.csv",
-            "../data/sample/sample_reviews.csv",
         ]
 
         df: Optional[pd.DataFrame] = None
@@ -62,7 +71,7 @@ class RetrievalService:
             rid = str(r["review_id"])
             raw_text = str(r.get(text_col, ""))
             score_val = r.get("model_score")
-            model_score = float(score_val) if pd.notna(score_val) else 0.0
+            model_score = float(score_val) if pd.notna(score_val) else None
             rating_val = r.get("rating")
             rating = float(rating_val) if pd.notna(rating_val) else 0.0
 
@@ -77,7 +86,16 @@ class RetrievalService:
                 "text": raw_text,
                 "rating": rating,
                 "model_score": model_score,
-                "predicted_class": "fake" if str(r.get("label", "")).strip() in ("1", "1.0", "True", "CG", "fake") else "genuine",
+                "predicted_class": (
+                    "fake"
+                    if str(r.get("label", "")).strip() in ("1", "1.0", "True", "CG", "fake")
+                    else (
+                        "genuine"
+                        if str(r.get("label", "")).strip() in ("0", "0.0", "False", "genuine")
+                        else None
+                    )
+                ),
+                "date": str(r.get("timestamp", "")),
             }
 
         # Populate SQLite FTS table
@@ -99,23 +117,24 @@ class RetrievalService:
                     tokenize='porter ascii'
                 )
             """)
-            count_row = conn.execute("SELECT count(*) FROM reviews_fts").fetchone()
-            if not count_row or count_row[0] == 0:
-                rows = [
-                    (
-                        item["review_id"],
-                        item["product_id"],
-                        item["reviewer_id"],
-                        item["text"],
-                        str(item["rating"]),
-                        str(r.get("timestamp", "")),
-                        str(item["model_score"]),
-                        item["predicted_class"],
-                    )
-                    for item in self._reviews_cache.values()
-                ]
-                conn.executemany("INSERT INTO reviews_fts VALUES (?,?,?,?,?,?,?,?)", rows)
-                conn.commit()
+            # The CSV is the source of truth. Rebuild on startup even when IDs
+            # are unchanged so edited review text cannot leave stale postings.
+            conn.execute("DELETE FROM reviews_fts")
+            rows = [
+                (
+                    item["review_id"],
+                    item["product_id"],
+                    item["reviewer_id"],
+                    item["text"],
+                    str(item["rating"]),
+                    item.get("date", ""),
+                    "" if item["model_score"] is None else str(item["model_score"]),
+                    item["predicted_class"] or "",
+                )
+                for item in self._reviews_cache.values()
+            ]
+            conn.executemany("INSERT INTO reviews_fts VALUES (?,?,?,?,?,?,?,?)", rows)
+            conn.commit()
             conn.close()
             self._fts_ready = True
         except Exception as exc:
@@ -125,11 +144,83 @@ class RetrievalService:
     # Public search methods
     # ------------------------------------------------------------------
 
+    @staticmethod
+    def _fts_query(query: str) -> str:
+        """Build a safe, concept-aware FTS query for natural-language concerns."""
+        synonyms = (
+            {}
+            if re.search(
+                r"\b(?:not|no|without|never|isn't|isnt|doesn't|doesnt)\b",
+                query.lower(),
+            )
+            else _QUERY_SYNONYMS
+        )
+        tokens = [
+            token.lower() for token in re.findall(r"[A-Za-z0-9]+", query)
+            if len(token) > 1 and token.lower() not in {
+                "not", "no", "without", "never", "isn", "does", "doesn"
+            }
+        ]
+        clauses = []
+        for token in tokens:
+            alternatives = synonyms.get(token, (token,))
+            clauses.append(
+                "(" + " OR ".join(f'"{term}"' for term in alternatives) + ")"
+            )
+        return " AND ".join(clauses) or '""'
+
+    @staticmethod
+    def _text_matches_query(query: str, text: str) -> bool:
+        synonyms = (
+            {}
+            if re.search(
+                r"\b(?:not|no|without|never|isn't|isnt|doesn't|doesnt)\b",
+                query.lower(),
+            )
+            else _QUERY_SYNONYMS
+        )
+        tokens = [
+            t.lower()
+            for t in re.findall(r"[A-Za-z0-9]+", query)
+            if len(t) > 1 and t.lower() not in {"not", "no", "without", "never", "isn", "does", "doesn"}
+        ]
+        lowered = text.lower()
+        return all(any(term in lowered for term in synonyms.get(token, (token,))) for token in tokens)
+
+    @staticmethod
+    def _relevance_explanation(query: str, result: Dict) -> Dict[str, Any]:
+        text = str(result.get("text") or result.get("snippet") or "")
+        lowered = text.lower()
+        terms = [
+            token.lower() for token in re.findall(r"[A-Za-z0-9]+", query)
+            if len(token) > 1
+        ]
+        matched = [term for term in terms if term in lowered]
+        sources = [
+            label for label, field in (
+                ("keyword", "keyword_score"),
+                ("semantic", "semantic_score"),
+                ("graph", "graph_score"),
+            ) if result.get(field) is not None
+        ]
+        if matched:
+            reason = f"Review text contains query terms: {', '.join(matched[:4])}."
+        elif "semantic" in sources:
+            reason = "Semantic retrieval found similar wording or meaning without an exact phrase match."
+        else:
+            reason = "Retrieved through the available review and graph signals."
+        return {
+            "reason": reason,
+            "signals": sources,
+            "matched_terms": matched[:6],
+        }
+
     async def keyword_search(
         self,
         query: str,
         limit: int = 20,
         page: int = 1,
+        product_id: Optional[str] = None,
     ) -> Dict:
         """Search reviews using SQLite FTS5 with in-memory substring fallback."""
         t0 = time.perf_counter()
@@ -145,16 +236,18 @@ class RetrievalService:
             conn = sqlite3.connect(self.fts_db_path)
             conn.row_factory = sqlite3.Row
             try:
-                words = [w.strip().replace('"', '') for w in query.split() if len(w.strip()) > 1]
-                if not words:
-                    words = [query.strip().replace('"', '')]
-                fts_query = " OR ".join(f'"{w}"' for w in words if w)
-                if not fts_query:
-                    fts_query = '""'
+                # AND prevents a single topical word from making every review
+                # containing it look relevant. Semantic search handles paraphrases.
+                fts_query = self._fts_query(query)
 
                 count_row = conn.execute(
-                    "SELECT count(*) AS total FROM reviews_fts WHERE reviews_fts MATCH ?",
-                    (fts_query,),
+                    """
+                    SELECT count(*) AS total
+                    FROM reviews_fts
+                    WHERE reviews_fts MATCH ?
+                      AND (? IS NULL OR product_id = ?)
+                    """,
+                    (fts_query, product_id, product_id),
                 ).fetchone()
                 tot = count_row["total"] if count_row else 0
 
@@ -166,10 +259,11 @@ class RetrievalService:
                            model_score, predicted_class
                     FROM reviews_fts
                     WHERE reviews_fts MATCH ?
+                      AND (? IS NULL OR product_id = ?)
                     ORDER BY bm25(reviews_fts)
                     LIMIT ? OFFSET ?
                     """,
-                    (fts_query, limit, offset),
+                    (fts_query, product_id, product_id, limit, offset),
                 ).fetchall()
 
                 res = []
@@ -189,9 +283,10 @@ class RetrievalService:
                             "snippet": row["snippet"] or cached.get("snippet", ""),
                             "keyword_score": score,
                             "score": score,
-                            "model_score": float(row["model_score"] or 0.0),
-                            "predicted_class": row["predicted_class"],
+                            "model_score": float(row["model_score"]) if row["model_score"] not in (None, "") else None,
+                            "predicted_class": row["predicted_class"] or None,
                             "item_type": "Review",
+                            "text": cached.get("text", ""),
                         }
                     )
                 return {"results": res, "total": tot}
@@ -203,18 +298,19 @@ class RetrievalService:
             data = await loop.run_in_executor(None, _run_fts)
             results = data["results"]
             total = data["total"]
-        except Exception:
-            results = []
-            total = 0
+        except Exception as exc:
+            logger.error("Keyword retrieval failed: %s", exc, exc_info=True)
+            raise RuntimeError("Keyword retrieval is unavailable.") from exc
 
         # Fallback to in-memory substring match if FTS returns no matches
         if not results and self._reviews_cache:
-            q_lower = query.lower()
             matched = []
             for item in self._reviews_cache.values():
-                text_match = q_lower in item["text"].lower()
-                pid_match = q_lower in item["product_id"].lower()
-                if text_match or pid_match:
+                text_match = self._text_matches_query(query, item["text"])
+                pid_match = query.strip().lower() == item["product_id"].lower()
+                if (text_match or pid_match) and (
+                    product_id is None or item["product_id"] == product_id
+                ):
                     item_copy = dict(item)
                     item_copy["keyword_score"] = 1.0 if text_match else 0.5
                     item_copy["score"] = item_copy["keyword_score"]
@@ -232,7 +328,9 @@ class RetrievalService:
             "latency_ms": round(latency_ms, 2),
         }
 
-    async def semantic_search(self, query: str, limit: int = 20) -> Dict:
+    async def semantic_search(
+        self, query: str, limit: int = 20, product_id: Optional[str] = None
+    ) -> Dict:
         """Search using dense vector embeddings via embedding_service."""
         t0 = time.perf_counter()
         limit = max(1, min(limit, 200))
@@ -242,10 +340,18 @@ class RetrievalService:
         try:
             if hasattr(self.embedding_service, "search"):
                 # embedding_service.search is synchronous and takes k
-                raw = self.embedding_service.search(query, k=limit)
+                raw = self.embedding_service.search(query, k=min(max(limit * 5, 50), 1000))
                 for item in raw:
                     rid = item.get("review_id", "")
                     cached = self._reviews_cache.get(rid, {})
+                    if not cached:
+                        logger.warning(
+                            "Ignoring embedding result %s because it is absent from the active dataset.",
+                            rid,
+                        )
+                        continue
+                    if product_id is not None and cached.get("product_id") != product_id:
+                        continue
                     score = float(item.get("score", 0.0))
                     results.append(
                         {
@@ -257,13 +363,15 @@ class RetrievalService:
                             "snippet": cached.get("snippet", ""),
                             "semantic_score": score,
                             "score": score,
-                            "model_score": cached.get("model_score", 0.0),
-                            "predicted_class": cached.get("predicted_class", "genuine"),
+                            "model_score": cached.get("model_score"),
+                            "predicted_class": cached.get("predicted_class"),
                             "item_type": "Review",
+                            "text": cached.get("text", ""),
                         }
                     )
         except Exception as exc:
-            logger.error("semantic_search error: %s", exc)
+            logger.error("semantic_search error: %s", exc, exc_info=True)
+            raise RuntimeError("Semantic retrieval is unavailable.") from exc
 
         latency_ms = (time.perf_counter() - t0) * 1000
         return {
@@ -291,7 +399,9 @@ class RetrievalService:
             for item in raw:
                 rid = item.get("review_id", "")
                 cached = self._reviews_cache.get(rid, {})
-                score = float(item.get("model_score") or 0.5)
+                text = str(item.get("review_text") or cached.get("text") or "")
+                terms = [t for t in re.findall(r"[A-Za-z0-9]+", query.lower()) if len(t) > 1]
+                score = sum(term in text.lower() for term in terms) / len(terms) if terms else 0.0
                 results.append(
                     {
                         "item_id": rid,
@@ -302,20 +412,14 @@ class RetrievalService:
                         "snippet": item.get("review_text") or cached.get("snippet", ""),
                         "graph_score": score,
                         "score": score,
-                        "model_score": float(item.get("model_score") or cached.get("model_score", 0.0)),
-                        "predicted_class": item.get("predicted_class") or cached.get("predicted_class", "genuine"),
+                        "model_score": item.get("model_score", cached.get("model_score")),
+                        "predicted_class": item.get("predicted_class", cached.get("predicted_class")),
                         "item_type": "Review",
                     }
                 )
         except Exception as exc:
-            logger.error("graph_search error: %s", exc)
-
-        # Fallback to cache if graph returns no results
-        if not results and self._reviews_cache:
-            q_lower = query.lower()
-            for item in list(self._reviews_cache.values())[:limit]:
-                if q_lower in item["text"].lower():
-                    results.append(dict(item, graph_score=0.5, score=0.5))
+            logger.error("graph_search error: %s", exc, exc_info=True)
+            raise RuntimeError("Graph retrieval is unavailable.") from exc
 
         latency_ms = (time.perf_counter() - t0) * 1000
         return {
@@ -369,25 +473,32 @@ class RetrievalService:
         fetch_more = limit * 3  # fetch extra before dedup
 
         if mode in ("keyword", "hybrid"):
-            kw = await self.keyword_search(query, limit=fetch_more, page=1)
+            kw = await self.keyword_search(
+                query, limit=fetch_more, page=1, product_id=product_id
+            )
             keyword_results = self._normalize_scores(kw["results"], "keyword_score")
 
         if mode in ("semantic", "hybrid"):
-            sem = await self.semantic_search(query, limit=fetch_more)
+            sem = await self.semantic_search(
+                query, limit=fetch_more, product_id=product_id
+            )
             semantic_results = self._normalize_scores(sem["results"], "semantic_score")
 
         if mode in ("graph", "hybrid"):
             gr = await self.graph_search(query, product_id=product_id, limit=fetch_more)
             graph_results = self._normalize_scores(gr["results"], "graph_score")
 
-        # --- Tag each result with source and weighted score ---
+        # --- Tag each result with source rank for reciprocal rank fusion ---
         def _tag(items: List[Dict], source: str, field: str, weight: float) -> List[Dict]:
             tagged = []
-            for item in items:
+            for rank, item in enumerate(items, start=1):
                 item = dict(item)
-                norm = item.pop("_norm_score", 0.0)
-                item["_sources"] = {source: norm * weight}
-                item["_score"] = norm * weight
+                # RRF is robust to incomparable score scales and prevents a
+                # single source's arbitrary normalization from dominating.
+                contribution = weight / (60.0 + rank)
+                item["_sources"] = {source: contribution}
+                item["_source_ranks"] = {source: rank}
+                item["_score"] = contribution
                 tagged.append(item)
             return tagged
 
@@ -413,8 +524,10 @@ class RetrievalService:
 
         # Clean internal fields for response
         for r in page_results:
+            r["relevance_explanation"] = self._relevance_explanation(query, r)
             r.pop("_sources", None)
             r.pop("_score", None)
+            r.pop("_source_ranks", None)
 
         latency_ms = (time.perf_counter() - t0) * 1000
         return {
@@ -575,14 +688,27 @@ class RetrievalService:
                 merged[rid] = dict(item)
                 merged[rid]["_score"] = item.get("_score", 0.0)
                 merged[rid]["_sources"] = dict(item.get("_sources", {}))
+                merged[rid]["_source_ranks"] = dict(item.get("_source_ranks", {}))
             else:
                 # Accumulate score from additional sources
                 merged[rid]["_score"] += item.get("_score", 0.0)
                 merged[rid]["_sources"].update(item.get("_sources", {}))
+                merged[rid]["_source_ranks"].update(item.get("_source_ranks", {}))
                 # Prefer the richer record (more non-empty fields)
                 for k, v in item.items():
                     if k not in merged[rid] or (v and not merged[rid].get(k)):
                         merged[rid][k] = v
 
         ranked = sorted(merged.values(), key=lambda x: x.get("_score", 0.0), reverse=True)
+        max_score = ranked[0].get("_score", 0.0) if ranked else 0.0
+        for item in ranked:
+            # Keep the public score interpretable after RRF while retaining
+            # source-specific scores for diagnostics.
+            fused_score = item.get("_score", 0.0)
+            item["combined_score"] = round(
+                fused_score / max_score, 6
+            ) if max_score > 0 else 0.0
+            item["score"] = item["combined_score"]
+            item["retrieval_sources"] = sorted(item.get("_sources", {}))
+            item["source_ranks"] = dict(item.get("_source_ranks", {}))
         return ranked

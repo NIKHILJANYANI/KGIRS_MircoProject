@@ -13,6 +13,11 @@ Responsibilities
 
 from __future__ import annotations
 
+# Initialize the numerical libraries before other app modules.
+import numpy as np
+import faiss
+import torch
+
 import logging
 import os
 from contextlib import asynccontextmanager

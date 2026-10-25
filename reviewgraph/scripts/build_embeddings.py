@@ -26,6 +26,7 @@ from pathlib import Path
 from typing import Optional
 
 import numpy as np
+import torch  # Initialize PyTorch before pandas on Windows
 import pandas as pd
 
 

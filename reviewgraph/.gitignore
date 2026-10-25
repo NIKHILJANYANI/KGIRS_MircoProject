@@ -41,15 +41,23 @@ data/raw/*.csv
 data/raw/*.json
 data/raw/*.jsonl
 data/raw/*.gz
+data/external/*.csv
 data/processed/*.csv
 data/processed/*.json
 data/processed/*.pkl
+data/processed/*.db
 
 # Model artifacts
 models/*.pkl
 models/*.bin
 models/*.npz
 models/*.index
+models/*.faiss
+models/*_meta.json
+models/evaluation_results.json
+
+# Dataset provenance is intentionally kept; downloaded/exported CSVs are not.
+!data/external/*_manifest.json
 
 # But keep sample data
 !data/sample/

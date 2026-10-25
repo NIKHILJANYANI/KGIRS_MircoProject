@@ -74,6 +74,9 @@ class SearchResult(BaseModel):
         le=1.0,
         description="Classifier confidence that the review is fake (CG)",
     )
+    predicted_class: Optional[str] = None
+    retrieval_sources: List[str] = Field(default_factory=list)
+    source_ranks: Dict[str, int] = Field(default_factory=dict)
 
 
 class SearchResponse(BaseModel):

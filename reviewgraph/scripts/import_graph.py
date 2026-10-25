@@ -121,7 +121,9 @@ SET r.rating       = row.rating,
     r.char_count   = row.char_count,
     r.is_fake      = row.is_fake,
     r.model_score  = row.model_score,
-    r.timestamp    = row.timestamp
+    r.review_date  = row.review_date,
+    r.verified_purchase = row.verified_purchase,
+    r.helpful_vote = row.helpful_vote
 """
 
 WROTE_REL_Q = """
@@ -272,7 +274,9 @@ def import_reviews(session, df: pd.DataFrame, batch_size: int) -> int:
     cc_col = _detect(df, ["char_count"])
     fake_col = _detect(df, ["is_fake"])
     score_col = _detect(df, ["model_score"])
-    ts_col = _detect(df, ["timestamp"])
+    ts_col = _detect(df, ["review_date", "timestamp"])
+    verified_col = _detect(df, ["verified_purchase"])
+    helpful_col = _detect(df, ["helpful_vote", "helpful_votes"])
 
     rows = []
     for _, r in df.iterrows():
@@ -284,7 +288,9 @@ def import_reviews(session, df: pd.DataFrame, batch_size: int) -> int:
             "char_count": int(r[cc_col]) if cc_col and pd.notna(r.get(cc_col)) else None,
             "is_fake": int(r[fake_col]) if fake_col and pd.notna(r.get(fake_col)) else None,
             "model_score": float(r[score_col]) if score_col and pd.notna(r.get(score_col)) else None,
-            "timestamp": str(r[ts_col]) if ts_col and pd.notna(r.get(ts_col)) else None,
+            "review_date": str(r[ts_col]) if ts_col and pd.notna(r.get(ts_col)) else None,
+            "verified_purchase": bool(r[verified_col]) if verified_col and pd.notna(r.get(verified_col)) else None,
+            "helpful_vote": int(r[helpful_col]) if helpful_col and pd.notna(r.get(helpful_col)) else None,
         })
 
     for batch in _batched(rows, batch_size):

@@ -85,6 +85,20 @@ class ExplanationService:
 
         # --- Source records ---
         source_records = list({r["review_id"] for r in reviews if r.get("review_id")})
+        source_record_details = [
+            {"review_id": r["review_id"], "source": "Review node"}
+            for r in reviews if r.get("review_id")
+        ]
+        source_record_details.extend(
+            {
+                "review_id": p.get("review_a"),
+                "related_review_id": p.get("review_b"),
+                "relationship": "SIMILAR_TO",
+                "score": p.get("score"),
+            }
+            for p in similar_pairs
+            if p.get("review_a") and p.get("review_b")
+        )
 
         # --- Reasoning chain ---
         reasoning_chain = self._build_reasoning_chain(
@@ -113,6 +127,7 @@ class ExplanationService:
             "reasoning_chain": reasoning_chain,
             "graph_paths": graph_paths,
             "source_records": source_records,
+            "source_record_details": source_record_details,
             "explanation_summary": explanation_summary,
             "suspiciousness": suspiciousness,
             "limitations": limitations,
@@ -263,11 +278,6 @@ class ExplanationService:
             genuine_count = sum(
                 1 for r in reviews if str(r.get("predicted_class", "")).lower() == "genuine"
             )
-            if fake_count or genuine_count:
-                facts.append(
-                    f"Model predicted {fake_count} review(s) as 'fake' and "
-                    f"{genuine_count} review(s) as 'genuine'."
-                )
             verified = sum(1 for r in reviews if r.get("verified_purchase"))
             facts.append(f"{verified} of {total} reviews are marked as verified purchases.")
 
@@ -322,14 +332,14 @@ class ExplanationService:
         """Extract model predictions with attached warnings."""
         predictions = []
         for r in reviews:
-            if r.get("model_score") is not None or r.get("predicted_class"):
+            if r.get("model_score") is not None or r.get("predicted_class") in {"fake", "genuine"}:
                 predictions.append(
                     {
                         "review_id": r.get("review_id"),
                         "model_score": (
                             round(float(r["model_score"]), 4) if r.get("model_score") is not None else None
                         ),
-                        "predicted_class": r.get("predicted_class", "unknown"),
+                        "predicted_class": r.get("predicted_class"),
                         "warning": (
                             "Model score is a classifier output, not a calibrated probability. "
                             "It should not be interpreted as a definitive fraud determination."
@@ -484,6 +494,11 @@ class ExplanationService:
         limitations = list(_STANDARD_LIMITATIONS)
 
         reviews = investigation_data.get("reviews", [])
+        coverage = investigation_data.get("coverage", {})
+        if any(item.get("truncated") for item in coverage.values() if isinstance(item, dict)):
+            limitations.append(
+                "This investigation reached one or more query limits; reported evidence is a capped subset."
+            )
         if reviews:
             without_score = [r for r in reviews if r.get("model_score") is None]
             if without_score:
@@ -491,11 +506,17 @@ class ExplanationService:
                     f"{len(without_score)} of {len(reviews)} review(s) lack model scores "
                     "and are excluded from score-based analysis."
                 )
+            if not any(r.get("model_score") is not None or r.get("predicted_class") for r in reviews):
+                limitations.append(
+                    "No classifier predictions are available for these reviews; suspiciousness is based on observed and derived graph signals only."
+                )
+            if any(r.get("reviewer_id", "").startswith("sha256:") for r in reviews):
+                limitations.append("Reviewer identifiers are anonymized hashes and cannot identify people.")
 
         signals = investigation_data.get("signals", [])
         if not signals:
             limitations.append(
-                "No EvidenceSignal nodes were found; signal-based scoring defaults to 0."
+                "No EvidenceSignal nodes were found; evidence-signal analysis is unavailable."
             )
 
         return limitations
@@ -555,6 +576,7 @@ class ExplanationService:
         score = suspiciousness.get("score", 0.0)
         level = suspiciousness.get("level", "unknown")
         breakdown = suspiciousness.get("breakdown", {})
+        avg_model_score = breakdown.get("avg_model_score")
 
         total_reviews = len(reviews)
         total_signals = len(signals)
@@ -566,9 +588,13 @@ class ExplanationService:
             f"{total_reviews} review(s) retrieved from the knowledge graph. "
             f"Overall suspiciousness score: {score:.3f} ({level.upper()}). "
         )
+        model_component = (
+            f"avg model score: {avg_model_score:.3f} (weight 0.40); "
+            if avg_model_score is not None
+            else "avg model score: unavailable; "
+        )
         summary += (
-            f"Score components — "
-            f"avg model score: {breakdown.get('avg_model_score', 0):.3f} (weight 0.40); "
+            f"Score components — {model_component}"
             f"suspicious signal ratio: {breakdown.get('suspicious_signal_ratio', 0):.3f} (weight 0.30); "
             f"reviewer overlap ratio: {breakdown.get('reviewer_overlap_ratio', 0):.3f} (weight 0.20); "
             f"text similarity ratio: {breakdown.get('text_similarity_ratio', 0):.3f} (weight 0.10). "

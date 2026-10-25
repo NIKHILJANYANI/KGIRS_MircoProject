@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { Star, Copy, Check, ExternalLink, AlertTriangle } from 'lucide-react'
+import { normalizeReviewText } from '../utils/reviewText'
 
 const CLASS_STYLES = {
   fake:    'bg-red-900/60 text-red-300 border border-red-700',
@@ -99,7 +100,7 @@ export default function ReviewCard({ review, onViewDetails, compact = false }) {
     is_synthetic,
   } = review
 
-  const text = review_text || review.text || ''
+  const text = normalizeReviewText(review_text || review.text || '')
   const excerpt = text.slice(0, 150)
   const hasMore = text.length > 150
   const classKey = String(predicted_class ?? '').toLowerCase()
@@ -153,7 +154,7 @@ export default function ReviewCard({ review, onViewDetails, compact = false }) {
 
       {/* Review text */}
       {text && (
-        <div className="text-sm text-gray-300 leading-relaxed">
+        <div className="text-sm text-gray-300 leading-relaxed whitespace-pre-line">
           {expanded || !hasMore ? text : excerpt}
           {!expanded && hasMore && <span className="text-gray-500">…</span>}
           {hasMore && (

@@ -188,6 +188,15 @@ async def investigate_product(
                 "investigate_product(%s) explanation failed: %s", product_id, exc
             )
             investigation["explanation"] = None
+            investigation["explanation_status"] = {
+                "available": False,
+                "warning": "Evidence explanation is unavailable; displayed investigation data is graph-only.",
+            }
+    else:
+        investigation["explanation_status"] = {
+            "available": False,
+            "warning": "Evidence explanation service is not configured.",
+        }
 
     return investigation
 
